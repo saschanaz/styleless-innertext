@@ -2,7 +2,15 @@
  * @param {HTMLElement} element target element
  */
 export default function innerText(element) {
-
+  let results = collectInnerText(element);
+  results = results.filter(item => item !== "");
+  while (typeof results[0] === "number") {
+    results.shift();
+  }
+  while (typeof results[results.length - 1] === "number") {
+    results.pop();
+  }
+  // TODO: replacement by maximum value
 }
 
 
