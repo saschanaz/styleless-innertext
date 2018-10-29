@@ -43,7 +43,11 @@ const blockElements = [
   "pre",
   "section",
   "table",
-  "ul"
+  "ul",
+
+  // considered as block-level only for innerText
+  "optgroup",
+  "option"
 ]
 
 /**
@@ -52,10 +56,19 @@ const blockElements = [
  */
 function collectInnerText(node) {
   /** @type {(number | string)[]} */
-  const items = arrayFlat([...node.childNodes].map(collectInnerText));
+  const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
   if (node.nodeType === 3) {
-
+    if (node.parentElement && node.parentElement.localName === "pre") {
+      items.push(/** @type {string} */(node.textContent));
+    } else {
+      const collapsed = (/** @type {string} */(node.textContent)).replace(/\s/g, " ");
+      if (!node.nextSibling || isElementOf(node.nextSibling, "br")) {
+        items.push(collapsed.trimEnd());
+      } else {
+        items.push(collapsed);
+      }
+    }
   } else if (isElement(node)) {
     switch (node.localName) {
       case "br":
@@ -94,6 +107,23 @@ function collectInnerText(node) {
 }
 
 /**
+ * @param {Node} node 
+ */
+function getChildNodes(node) {
+  const childNodes = [...node.childNodes];
+  if (!isElement(node)) {
+    return childNodes;
+  }
+  switch (node.localName) {
+    case "select":
+      return childNodes.filter(node => isElementOf(node, "optgroup") || isElementOf(node, "option"));
+    case "optgroup":
+      return childNodes.filter(node => isElementOf(node, "option"));
+  }
+  return childNodes;
+}
+
+/**
  * @template {keyof HTMLElementTagNameMap} K 
  * @param {Node} node
  * @param {K} localName
@@ -101,7 +131,6 @@ function collectInnerText(node) {
  */
 function isElementOf(node, localName) {
   return isElement(node) && node.localName === localName;
-  document.createElement
 }
 
 /**
