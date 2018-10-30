@@ -108,7 +108,7 @@ function collectInnerText(node) {
     if (node.parentElement && node.parentElement.localName === "pre") {
       items.push(/** @type {string} */(node.textContent));
     } else {
-      const collapsed = (/** @type {string} */(node.textContent)).replace(/\s/g, " ");
+      const collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
       if (!node.nextSibling || isElementOf(node.nextSibling, "br")) {
         items.push(collapsed.trimEnd());
       } else {
