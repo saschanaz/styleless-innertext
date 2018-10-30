@@ -10,7 +10,45 @@ export default function innerText(element) {
   while (typeof results[results.length - 1] === "number") {
     results.pop();
   }
-  // TODO: replacement by maximum value
+
+  // replacement by maximum value
+  let found = findConsecutiveNumbers(results, 0);
+  while (found.index !== -1) {
+    const max = Math.max(...found.numbers);
+    results.splice(found.index, found.numbers.length, "\n".repeat(max));
+    found = findConsecutiveNumbers(results, found.index);
+  }
+  return results.join("");
+}
+
+/**
+ * @param {(string | number)[]} array
+ * @param {number} start
+ */
+function findConsecutiveNumbers(array, start) {
+  let index = -1;
+  for (let i = start; i < array.length; i++) {
+    if (typeof array[i] === "number") {
+      index = i;
+      break;
+    }
+  }
+  if (index === -1) {
+    return {
+      index, numbers: []
+    };
+  }
+  /** @type {number[]} */
+  const numbers = [/** @type {number} */(array[index])];
+  for (let i = index + 1; i < array.length; i++) {
+    if (typeof array[i] !== "number") {
+      break;
+    }
+    numbers.push(/** @type {number} */(array[i]));
+  }
+  return {
+    index, numbers
+  };
 }
 
 
