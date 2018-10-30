@@ -1,7 +1,65 @@
+/** 
+ * Elements that is block-level by default
+ * From MDN: https://developer.mozilla.org/docs/Web/HTML/Block-level_elements
+ */
+const blockElements = [
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "details",
+  "dialog",
+  "dd",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hgroup",
+  "hr",
+  "li",
+  "main",
+  "nav",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "table",
+  "ul",
+
+  // Considered as block-level only for innerText
+  "optgroup",
+  "option"
+];
+
+const nonCSSRenderedElements = [
+  "audio",
+  "input",
+  "noscript",
+  "script",
+  "style",
+  "textarea",
+  "video",
+];
+
 /**
  * @param {HTMLElement} element target element
  */
 export default function innerText(element) {
+  if (nonCSSRenderedElements.includes(element.localName)) {
+    return element.textContent;
+  }
+
   let results = collectInnerText(element);
   results = results.filter(item => item !== "");
   while (typeof results[0] === "number") {
@@ -51,56 +109,16 @@ function findConsecutiveNumbers(array, start) {
   };
 }
 
-
-/** 
- * elements that is block-level by default
- * From MDN: https://developer.mozilla.org/docs/Web/HTML/Block-level_elements
- */
-const blockElements = [
-  "address",
-  "article",
-  "aside",
-  "blockquote",
-  "details",
-  "dialog",
-  "dd",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "hgroup",
-  "hr",
-  "li",
-  "main",
-  "nav",
-  "ol",
-  "p",
-  "pre",
-  "section",
-  "table",
-  "ul",
-
-  // considered as block-level only for innerText
-  "optgroup",
-  "option"
-]
-
 /**
  * Runs "inner text collection steps"
  * @param {Node} node target node
  */
 function collectInnerText(node) {
+  if (isElement(node) && nonCSSRenderedElements.includes(node.localName)) {
+    // Return early because `display: contents` is currently being ignored.
+    return [];
+  }
+
   /** @type {(number | string)[]} */
   const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
@@ -159,7 +177,7 @@ function collectInnerText(node) {
  * @param {Text} text 
  */
 function followsBlock(text) {
-  return text.previousSibling && 
+  return text.previousSibling &&
     isElement(text.previousSibling) &&
     blockElements.includes(text.previousSibling.localName);
 }
@@ -168,7 +186,7 @@ function followsBlock(text) {
  * @param {Text} text 
  */
 function followedByBlock(text) {
-  return text.nextSibling && 
+  return text.nextSibling &&
     isElement(text.nextSibling) &&
     blockElements.includes(text.nextSibling.localName);
 }
@@ -195,6 +213,7 @@ function getPreviousVisualTextSibling(text) {
     } else if (parentElement.previousSibling && parentElement.previousSibling.nodeType === 1) {
       return /** @type {Text} */(parentElement.previousSibling);
     }
+    parentElement = parentElement.parentElement;
   }
 }
 
