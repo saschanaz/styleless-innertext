@@ -104,12 +104,15 @@ function collectInnerText(node) {
   /** @type {(number | string)[]} */
   const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
-  if (node.nodeType === 3) {
+  if (isText(node)) {
     if (node.parentElement && node.parentElement.localName === "pre") {
       items.push(/** @type {string} */(node.textContent));
     } else {
-      const collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
-      if (!node.nextSibling || isElementOf(node.nextSibling, "br")) {
+      let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
+      if (followedByInlineWhitespace(node) || followsBlock(node)) {
+        collapsed = collapsed.trimStart();
+      }
+      if (!node.nextSibling || isElementOf(node.nextSibling, "br") || followedByBlock(node)) {
         items.push(collapsed.trimEnd());
       } else {
         items.push(collapsed);
@@ -153,6 +156,49 @@ function collectInnerText(node) {
 }
 
 /**
+ * @param {Text} text 
+ */
+function followsBlock(text) {
+  return text.previousSibling && 
+    isElement(text.previousSibling) &&
+    blockElements.includes(text.previousSibling.localName);
+}
+
+/**
+ * @param {Text} text 
+ */
+function followedByBlock(text) {
+  return text.nextSibling && 
+    isElement(text.nextSibling) &&
+    blockElements.includes(text.nextSibling.localName);
+}
+
+/**
+ * @param {Text} text 
+ */
+function followedByInlineWhitespace(text) {
+  const previousSibling = getPreviousVisualTextSibling(text);
+  if (!previousSibling) {
+    return false;
+  }
+  return /\s$/.test(/** @type {string} */(previousSibling.textContent));
+}
+
+/**
+ * @param {Text} text 
+ */
+function getPreviousVisualTextSibling(text) {
+  let { parentElement } = text;
+  while (parentElement) {
+    if (blockElements.includes(parentElement.localName)) {
+      return;
+    } else if (parentElement.previousSibling && parentElement.previousSibling.nodeType === 1) {
+      return /** @type {Text} */(parentElement.previousSibling);
+    }
+  }
+}
+
+/**
  * @param {Node} node 
  */
 function getChildNodes(node) {
@@ -186,6 +232,15 @@ function isElementOf(node, localName) {
  */
 function isElement(node) {
   return node.nodeType === 1;
+}
+
+/**
+ * 
+ * @param {Node} node
+ * @return {node is Text}
+ */
+function isText(node) {
+  return node.nodeType === 3;
 }
 
 /**
