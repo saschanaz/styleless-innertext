@@ -127,10 +127,10 @@ function collectInnerText(node) {
       items.push(/** @type {string} */(node.textContent));
     } else {
       let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
-      if (followedByInlineWhitespace(node) || followsBlock(node)) {
+      if (shouldTrimStart(node)) {
         collapsed = collapsed.trimStart();
       }
-      if (!node.nextSibling || isElementOf(node.nextSibling, "br") || followedByBlock(node)) {
+      if (!node.nextSibling || isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
         items.push(collapsed.trimEnd());
       } else {
         items.push(collapsed);
@@ -176,28 +176,10 @@ function collectInnerText(node) {
 /**
  * @param {Text} text 
  */
-function followsBlock(text) {
-  return text.previousSibling &&
-    isElement(text.previousSibling) &&
-    blockElements.includes(text.previousSibling.localName);
-}
-
-/**
- * @param {Text} text 
- */
-function followedByBlock(text) {
-  return text.nextSibling &&
-    isElement(text.nextSibling) &&
-    blockElements.includes(text.nextSibling.localName);
-}
-
-/**
- * @param {Text} text 
- */
-function followedByInlineWhitespace(text) {
+function shouldTrimStart(text) {
   const previousSibling = getPreviousVisualTextSibling(text);
   if (!previousSibling) {
-    return false;
+    return true;
   }
   return /\s$/.test(/** @type {string} */(previousSibling.textContent));
 }
@@ -206,14 +188,73 @@ function followedByInlineWhitespace(text) {
  * @param {Text} text 
  */
 function getPreviousVisualTextSibling(text) {
+  if (text.previousSibling) {
+    return getLastLeafTextIfInline(text.previousSibling);
+  }
   let { parentElement } = text;
   while (parentElement) {
     if (blockElements.includes(parentElement.localName)) {
       return;
-    } else if (parentElement.previousSibling && parentElement.previousSibling.nodeType === 1) {
-      return /** @type {Text} */(parentElement.previousSibling);
+    } else if (parentElement.previousSibling) {
+      return getLastLeafTextIfInline(parentElement.previousSibling);
     }
     parentElement = parentElement.parentElement;
+  }
+}
+
+/**
+ * @param {Node} node 
+ */
+function getLastLeafTextIfInline(node) {
+  let target = node;
+  while (target) {
+    if (isElement(target) && blockElements.includes(target.localName)) {
+      return;
+    }
+    if (!target.lastChild) {
+      return;
+    }
+    if (target.lastChild.nodeType === 3) {
+      return /** @type {Text} */ (target);
+    }
+    target = target.lastChild;
+  }
+}
+
+/**
+ * @param {Text} text 
+ */
+function getNextVisualTextSibling(text) {
+  if (text.nextSibling) {
+    return getLastLeafTextIfInline(text.nextSibling);
+  }
+  let { parentElement } = text;
+  while (parentElement) {
+    if (blockElements.includes(parentElement.localName)) {
+      return;
+    } else if (parentElement.nextSibling) {
+      return getFirstLeafTextIfInline(parentElement.nextSibling);
+    }
+    parentElement = parentElement.parentElement;
+  }
+}
+
+/**
+ * @param {Node} node 
+ */
+function getFirstLeafTextIfInline(node) {
+  let target = node;
+  while (target) {
+    if (isElement(target) && blockElements.includes(target.localName)) {
+      return;
+    }
+    if (!target.firstChild) {
+      return;
+    }
+    if (target.firstChild.nodeType === 3) {
+      return /** @type {Text} */ (target);
+    }
+    target = target.firstChild;
   }
 }
 
