@@ -55,7 +55,7 @@ const nonCSSRenderedElements = [
 /**
  * @param {HTMLElement} element target element
  */
-export default function innerText(element) {
+function innerText(element) {
   if (nonCSSRenderedElements.includes(element.localName)) {
     return element.textContent;
   }
@@ -78,6 +78,8 @@ export default function innerText(element) {
   }
   return results.join("");
 }
+module.exports = innerText;
+innerText.default = innerText;
 
 /**
  * @param {(string | number)[]} array

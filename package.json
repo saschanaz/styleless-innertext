@@ -1,0 +1,31 @@
+{
+  "name": "styleless-innertext",
+  "version": "1.0.0",
+  "description": "A library to imitate WHATWG HTMLElement.innerText specification",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "npx mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saschanaz/styleless-innertext.git"
+  },
+  "keywords": [
+    "innertext",
+    "whatwg"
+  ],
+  "author": "Kagami Sascha Rosylight <saschanaz@outlook.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/saschanaz/styleless-innertext/issues"
+  },
+  "homepage": "https://github.com/saschanaz/styleless-innertext#readme",
+  "devDependencies": {
+    "expect": "^23.6.0",
+    "jsdom": "^13.0.0",
+    "mocha": "^5.2.0"
+  }
+}
