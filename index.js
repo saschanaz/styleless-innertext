@@ -132,7 +132,7 @@ function collectInnerText(node) {
       if (shouldTrimStart(node)) {
         collapsed = collapsed.trimStart();
       }
-      if (!node.nextSibling || isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
+      if (isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
         items.push(collapsed.trimEnd());
       } else {
         items.push(collapsed);
@@ -149,7 +149,7 @@ function collectInnerText(node) {
         break;
       case "td":
       case "th":
-        if (node.parentElement && isElementOf(node.parentElement, "tr")) {
+        if (isElementOf(node.parentElement, "tr")) {
           const { cells } = node.parentElement;
           if (node !== cells[cells.length - 1]) {
             items.push("\t");
@@ -157,7 +157,7 @@ function collectInnerText(node) {
         }
         break;
       case "tr":
-        if (node.parentElement && isElementOf(node.parentElement, "table")) {
+        if (isElementOf(node.parentElement, "table")) {
           const { rows } = node.parentElement;
           if (node !== rows[rows.length - 1]) {
             items.push("\n");
@@ -213,11 +213,11 @@ function getLastLeafTextIfInline(node) {
     if (isElement(target) && blockElements.includes(target.localName)) {
       return;
     }
+    if (target.nodeType === 3) {
+      return /** @type {Text} */ (target);
+    }
     if (!target.lastChild) {
       return;
-    }
-    if (target.lastChild.nodeType === 3) {
-      return /** @type {Text} */ (target);
     }
     target = target.lastChild;
   }
@@ -228,7 +228,7 @@ function getLastLeafTextIfInline(node) {
  */
 function getNextVisualTextSibling(text) {
   if (text.nextSibling) {
-    return getLastLeafTextIfInline(text.nextSibling);
+    return getFirstLeafTextIfInline(text.nextSibling);
   }
   let { parentElement } = text;
   while (parentElement) {
@@ -250,11 +250,11 @@ function getFirstLeafTextIfInline(node) {
     if (isElement(target) && blockElements.includes(target.localName)) {
       return;
     }
+    if (target.nodeType === 3) {
+      return /** @type {Text} */ (target);
+    }
     if (!target.firstChild) {
       return;
-    }
-    if (target.firstChild.nodeType === 3) {
-      return /** @type {Text} */ (target);
     }
     target = target.firstChild;
   }
@@ -279,12 +279,12 @@ function getChildNodes(node) {
 
 /**
  * @template {keyof HTMLElementTagNameMap} K 
- * @param {Node} node
+ * @param {Node | null} node
  * @param {K} localName
  * @return {node is HTMLElementTagNameMap[K]}
  */
 function isElementOf(node, localName) {
-  return isElement(node) && node.localName === localName;
+  return !!node && isElement(node) && node.localName === localName;
 }
 
 /**
