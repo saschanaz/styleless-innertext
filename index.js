@@ -187,21 +187,21 @@ function shouldTrimStart(text) {
 }
 
 /**
- * @param {Text} text 
+ * @param {Node} node
+ * @return {Text | undefined}
  */
-function getPreviousVisualTextSibling(text) {
-  if (text.previousSibling) {
-    return getLastLeafTextIfInline(text.previousSibling);
+function getPreviousVisualTextSibling(node) {
+  if (node.previousSibling) {
+    return getLastLeafTextIfInline(node.previousSibling);
   }
-  let { parentElement } = text;
-  while (parentElement) {
-    if (blockElements.includes(parentElement.localName)) {
-      return;
-    } else if (parentElement.previousSibling) {
-      return getLastLeafTextIfInline(parentElement.previousSibling);
-    }
-    parentElement = parentElement.parentElement;
+  let { parentElement } = node;
+  if (!parentElement) {
+    return;
   }
+  if (blockElements.includes(parentElement.localName)) {
+    return;
+  }
+  return getPreviousVisualTextSibling(parentElement);
 }
 
 /**
@@ -224,21 +224,21 @@ function getLastLeafTextIfInline(node) {
 }
 
 /**
- * @param {Text} text 
+ * @param {Node} node
+ * @return {Text | undefined}
  */
-function getNextVisualTextSibling(text) {
-  if (text.nextSibling) {
-    return getFirstLeafTextIfInline(text.nextSibling);
+function getNextVisualTextSibling(node) {
+  if (node.nextSibling) {
+    return getFirstLeafTextIfInline(node.nextSibling);
   }
-  let { parentElement } = text;
-  while (parentElement) {
-    if (blockElements.includes(parentElement.localName)) {
-      return;
-    } else if (parentElement.nextSibling) {
-      return getFirstLeafTextIfInline(parentElement.nextSibling);
-    }
-    parentElement = parentElement.parentElement;
+  let { parentElement } = node;
+  if (!parentElement) {
+    return;
   }
+  if (blockElements.includes(parentElement.localName)) {
+    return;
+  }
+  return getNextVisualTextSibling(parentElement);
 }
 
 /**
