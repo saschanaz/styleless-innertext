@@ -52,10 +52,14 @@ const nonCSSRenderedElements = [
   "video",
 ];
 
+module.exports = innerText;
+innerText.default = innerText;
+
 /**
  * @param {HTMLElement} element target element
+ * @param {{ getComputedStyle?: Window["getComputedStyle"] }} options
  */
-function innerText(element) {
+function innerText(element, { getComputedStyle } = {}) {
   if (nonCSSRenderedElements.includes(element.localName)) {
     return element.textContent;
   }
@@ -77,186 +81,194 @@ function innerText(element) {
     found = findConsecutiveNumbers(results, found.index);
   }
   return results.join("");
-}
-module.exports = innerText;
-innerText.default = innerText;
 
-/**
- * @param {(string | number)[]} array
- * @param {number} start
- */
-function findConsecutiveNumbers(array, start) {
-  let index = -1;
-  for (let i = start; i < array.length; i++) {
-    if (typeof array[i] === "number") {
-      index = i;
-      break;
+  /**
+   * @param {Element} element 
+   */
+  function isBlock(element) {
+    if (getComputedStyle) {
+      return getComputedStyle(element).display === "block";
     }
+    return blockElements.includes(element.localName);
   }
-  if (index === -1) {
+
+  /**
+   * @param {(string | number)[]} array
+   * @param {number} start
+   */
+  function findConsecutiveNumbers(array, start) {
+    let index = -1;
+    for (let i = start; i < array.length; i++) {
+      if (typeof array[i] === "number") {
+        index = i;
+        break;
+      }
+    }
+    if (index === -1) {
+      return {
+        index, numbers: []
+      };
+    }
+    /** @type {number[]} */
+    const numbers = [/** @type {number} */(array[index])];
+    for (let i = index + 1; i < array.length; i++) {
+      if (typeof array[i] !== "number") {
+        break;
+      }
+      numbers.push(/** @type {number} */(array[i]));
+    }
     return {
-      index, numbers: []
+      index, numbers
     };
   }
-  /** @type {number[]} */
-  const numbers = [/** @type {number} */(array[index])];
-  for (let i = index + 1; i < array.length; i++) {
-    if (typeof array[i] !== "number") {
-      break;
+
+  /**
+   * Runs "inner text collection steps"
+   * @param {Node} node target node
+   */
+  function collectInnerText(node) {
+    if (isElement(node) && nonCSSRenderedElements.includes(node.localName)) {
+      // Return early because `display: contents` is currently being ignored.
+      return [];
     }
-    numbers.push(/** @type {number} */(array[i]));
-  }
-  return {
-    index, numbers
-  };
-}
 
-/**
- * Runs "inner text collection steps"
- * @param {Node} node target node
- */
-function collectInnerText(node) {
-  if (isElement(node) && nonCSSRenderedElements.includes(node.localName)) {
-    // Return early because `display: contents` is currently being ignored.
-    return [];
-  }
+    /** @type {(number | string)[]} */
+    const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
-  /** @type {(number | string)[]} */
-  const items = arrayFlat(getChildNodes(node).map(collectInnerText));
-
-  if (isText(node)) {
-    if (node.parentElement && node.parentElement.localName === "pre") {
-      items.push(/** @type {string} */(node.textContent));
-    } else {
-      let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
-      if (shouldTrimStart(node)) {
-        collapsed = collapsed.trimStart();
-      }
-      if (isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
-        items.push(collapsed.trimEnd());
+    if (isText(node)) {
+      if (node.parentElement && node.parentElement.localName === "pre") {
+        items.push(/** @type {string} */(node.textContent));
       } else {
-        items.push(collapsed);
+        let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
+        if (shouldTrimStart(node)) {
+          collapsed = collapsed.trimStart();
+        }
+        if (isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
+          items.push(collapsed.trimEnd());
+        } else {
+          items.push(collapsed);
+        }
+      }
+    } else if (isElement(node)) {
+      switch (node.localName) {
+        case "br":
+          items.push("\n");
+          break;
+        case "p":
+          items.splice(0, 0, 2);
+          items.push(2);
+          break;
+        case "td":
+        case "th":
+          if (isElementOf(node.parentElement, "tr")) {
+            const { cells } = node.parentElement;
+            if (node !== cells[cells.length - 1]) {
+              items.push("\t");
+            }
+          }
+          break;
+        case "tr":
+          if (isElementOf(node.parentElement, "table")) {
+            const { rows } = node.parentElement;
+            if (node !== rows[rows.length - 1]) {
+              items.push("\n");
+            }
+          }
+          break;
+        default:
+          if (node.localName === "caption" || isBlock(node)) {
+            items.splice(0, 0, 1);
+            items.push(1);
+          }
+          break;
       }
     }
-  } else if (isElement(node)) {
-    switch (node.localName) {
-      case "br":
-        items.push("\n");
-        break;
-      case "p":
-        items.splice(0, 0, 2);
-        items.push(2);
-        break;
-      case "td":
-      case "th":
-        if (isElementOf(node.parentElement, "tr")) {
-          const { cells } = node.parentElement;
-          if (node !== cells[cells.length - 1]) {
-            items.push("\t");
-          }
-        }
-        break;
-      case "tr":
-        if (isElementOf(node.parentElement, "table")) {
-          const { rows } = node.parentElement;
-          if (node !== rows[rows.length - 1]) {
-            items.push("\n");
-          }
-        }
-        break;
-      default:
-        if (node.localName === "caption" || blockElements.includes(node.localName)) {
-          items.splice(0, 0, 1);
-          items.push(1);
-        }
-        break;
-    }
+    return items;
   }
-  return items;
-}
 
-/**
- * @param {Text} text 
- */
-function shouldTrimStart(text) {
-  const previousSibling = getPreviousVisualTextSibling(text);
-  if (!previousSibling) {
-    return true;
+  /**
+   * @param {Text} text 
+   */
+  function shouldTrimStart(text) {
+    const previousSibling = getPreviousVisualTextSibling(text);
+    if (!previousSibling) {
+      return true;
+    }
+    return /\s$/.test(/** @type {string} */(previousSibling.textContent));
   }
-  return /\s$/.test(/** @type {string} */(previousSibling.textContent));
-}
 
-/**
- * @param {Text} text 
- */
-function getPreviousVisualTextSibling(text) {
-  if (text.previousSibling) {
-    return getLastLeafTextIfInline(text.previousSibling);
-  }
-  let { parentElement } = text;
-  while (parentElement) {
-    if (blockElements.includes(parentElement.localName)) {
-      return;
-    } else if (parentElement.previousSibling) {
-      return getLastLeafTextIfInline(parentElement.previousSibling);
+  /**
+   * @param {Text} text 
+   */
+  function getPreviousVisualTextSibling(text) {
+    if (text.previousSibling) {
+      return getLastLeafTextIfInline(text.previousSibling);
     }
-    parentElement = parentElement.parentElement;
+    let { parentElement } = text;
+    while (parentElement) {
+      if (isBlock(parentElement)) {
+        return;
+      } else if (parentElement.previousSibling) {
+        return getLastLeafTextIfInline(parentElement.previousSibling);
+      }
+      parentElement = parentElement.parentElement;
+    }
   }
-}
 
-/**
- * @param {Node} node 
- */
-function getLastLeafTextIfInline(node) {
-  let target = node;
-  while (target) {
-    if (isElement(target) && blockElements.includes(target.localName)) {
-      return;
+  /**
+   * @param {Node} node 
+   */
+  function getLastLeafTextIfInline(node) {
+    let target = node;
+    while (target) {
+      if (isElement(target) && isBlock(target)) {
+        return;
+      }
+      if (target.nodeType === 3) {
+        return /** @type {Text} */ (target);
+      }
+      if (!target.lastChild) {
+        return;
+      }
+      target = target.lastChild;
     }
-    if (target.nodeType === 3) {
-      return /** @type {Text} */ (target);
-    }
-    if (!target.lastChild) {
-      return;
-    }
-    target = target.lastChild;
   }
-}
 
-/**
- * @param {Text} text 
- */
-function getNextVisualTextSibling(text) {
-  if (text.nextSibling) {
-    return getFirstLeafTextIfInline(text.nextSibling);
-  }
-  let { parentElement } = text;
-  while (parentElement) {
-    if (blockElements.includes(parentElement.localName)) {
-      return;
-    } else if (parentElement.nextSibling) {
-      return getFirstLeafTextIfInline(parentElement.nextSibling);
+  /**
+   * @param {Text} text 
+   */
+  function getNextVisualTextSibling(text) {
+    if (text.nextSibling) {
+      return getFirstLeafTextIfInline(text.nextSibling);
     }
-    parentElement = parentElement.parentElement;
+    let { parentElement } = text;
+    while (parentElement) {
+      if (isBlock(parentElement)) {
+        return;
+      } else if (parentElement.nextSibling) {
+        return getFirstLeafTextIfInline(parentElement.nextSibling);
+      }
+      parentElement = parentElement.parentElement;
+    }
   }
-}
 
-/**
- * @param {Node} node 
- */
-function getFirstLeafTextIfInline(node) {
-  let target = node;
-  while (target) {
-    if (isElement(target) && blockElements.includes(target.localName)) {
-      return;
+  /**
+   * @param {Node} node 
+   */
+  function getFirstLeafTextIfInline(node) {
+    let target = node;
+    while (target) {
+      if (isElement(target) && isBlock(target)) {
+        return;
+      }
+      if (target.nodeType === 3) {
+        return /** @type {Text} */ (target);
+      }
+      if (!target.firstChild) {
+        return;
+      }
+      target = target.firstChild;
     }
-    if (target.nodeType === 3) {
-      return /** @type {Text} */ (target);
-    }
-    if (!target.firstChild) {
-      return;
-    }
-    target = target.firstChild;
   }
 }
 
