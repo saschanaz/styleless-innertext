@@ -191,8 +191,9 @@ function shouldTrimStart(text) {
  * @return {Text | undefined}
  */
 function getPreviousVisualTextSibling(node) {
-  if (node.previousSibling) {
-    return getLastLeafTextIfInline(node.previousSibling);
+  const previousSibling = getPreviousNonemptyInlineSibling(node);
+  if (previousSibling) {
+    return getLastLeafTextIfInline(previousSibling);
   }
   let { parentElement } = node;
   if (!parentElement) {
@@ -202,6 +203,21 @@ function getPreviousVisualTextSibling(node) {
     return;
   }
   return getPreviousVisualTextSibling(parentElement);
+}
+
+/**
+ * @param {Node} node 
+ */
+function getPreviousNonemptyInlineSibling(node) {
+  let { previousSibling } = node
+  while (previousSibling) {
+    if (isElement(previousSibling) && blockElements.includes(previousSibling.localName)) {
+      return;
+    } else if (previousSibling.textContent) {
+      return previousSibling;
+    }
+    previousSibling = previousSibling.previousSibling;
+  }
 }
 
 /**
@@ -228,8 +244,9 @@ function getLastLeafTextIfInline(node) {
  * @return {Text | undefined}
  */
 function getNextVisualTextSibling(node) {
-  if (node.nextSibling) {
-    return getFirstLeafTextIfInline(node.nextSibling);
+  const nextSibling = getNextNonemptyInlineSibling(node);
+  if (nextSibling) {
+    return getFirstLeafTextIfInline(nextSibling);
   }
   let { parentElement } = node;
   if (!parentElement) {
@@ -239,6 +256,21 @@ function getNextVisualTextSibling(node) {
     return;
   }
   return getNextVisualTextSibling(parentElement);
+}
+
+/**
+ * @param {Node} node 
+ */
+function getNextNonemptyInlineSibling(node) {
+  let { nextSibling } = node
+  while (nextSibling) {
+    if (isElement(nextSibling) && blockElements.includes(nextSibling.localName)) {
+      return;
+    } else if (nextSibling.textContent) {
+      return nextSibling;
+    }
+    nextSibling = nextSibling.previousSibling;
+  }
 }
 
 /**
