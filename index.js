@@ -36,10 +36,6 @@ const blockElements = [
   "section",
   "table",
   "ul",
-
-  // Considered as block-level only for innerText
-  "optgroup",
-  "option"
 ];
 
 const nonCSSRenderedElements = [
@@ -50,6 +46,16 @@ const nonCSSRenderedElements = [
   "style",
   "textarea",
   "video",
+];
+
+// https://www.w3.org/TR/css-display-3/#ref-for-block-level
+const blockLevelDisplays = [
+  "block",
+  "flow-root",
+  "list-item",
+  "flex",
+  "grid",
+  "table"
 ];
 
 module.exports = innerText;
@@ -86,8 +92,12 @@ function innerText(element, { getComputedStyle } = {}) {
    * @param {Element} element 
    */
   function isBlock(element) {
+    if (["optgroup", "option"].includes(element.localName)) {
+      // Considered as block-level only for innerText
+      return true;
+    }
     if (getComputedStyle) {
-      return getComputedStyle(element).display === "block";
+      return blockLevelDisplays.includes(String(getComputedStyle(element).display));
     }
     return blockElements.includes(element.localName);
   }
