@@ -208,20 +208,36 @@ function innerText(element, { getComputedStyle } = {}) {
   }
 
   /**
-   * @param {Text} text 
+   * @param {Node} node
+   * @return {Text | undefined}
    */
-  function getPreviousVisualTextSibling(text) {
-    if (text.previousSibling) {
-      return getLastLeafTextIfInline(text.previousSibling);
+  function getPreviousVisualTextSibling(node) {
+    const previousSibling = getPreviousNonemptyInlineSibling(node);
+    if (previousSibling) {
+      return getLastLeafTextIfInline(previousSibling);
     }
-    let { parentElement } = text;
-    while (parentElement) {
-      if (isBlock(parentElement)) {
+    let { parentElement } = node;
+    if (!parentElement) {
+      return;
+    }
+    if (isBlock(parentElement)) {
+      return;
+    }
+    return getPreviousVisualTextSibling(parentElement);
+  }
+
+  /**
+   * @param {Node} node 
+   */
+  function getPreviousNonemptyInlineSibling(node) {
+    let { previousSibling } = node
+    while (previousSibling) {
+      if (isElement(previousSibling) && isBlock(previousSibling)) {
         return;
-      } else if (parentElement.previousSibling) {
-        return getLastLeafTextIfInline(parentElement.previousSibling);
+      } else if (previousSibling.textContent) {
+        return previousSibling;
       }
-      parentElement = parentElement.parentElement;
+      previousSibling = previousSibling.previousSibling;
     }
   }
 
@@ -245,20 +261,36 @@ function innerText(element, { getComputedStyle } = {}) {
   }
 
   /**
-   * @param {Text} text 
+   * @param {Node} node
+   * @return {Text | undefined}
    */
-  function getNextVisualTextSibling(text) {
-    if (text.nextSibling) {
-      return getFirstLeafTextIfInline(text.nextSibling);
+  function getNextVisualTextSibling(node) {
+    const nextSibling = getNextNonemptyInlineSibling(node);
+    if (nextSibling) {
+      return getFirstLeafTextIfInline(nextSibling);
     }
-    let { parentElement } = text;
-    while (parentElement) {
-      if (isBlock(parentElement)) {
+    let { parentElement } = node;
+    if (!parentElement) {
+      return;
+    }
+    if (isBlock(parentElement)) {
+      return;
+    }
+    return getNextVisualTextSibling(parentElement);
+  }
+
+  /**
+   * @param {Node} node 
+   */
+  function getNextNonemptyInlineSibling(node) {
+    let { nextSibling } = node
+    while (nextSibling) {
+      if (isElement(nextSibling) && isBlock(nextSibling)) {
         return;
-      } else if (parentElement.nextSibling) {
-        return getFirstLeafTextIfInline(parentElement.nextSibling);
+      } else if (nextSibling.textContent) {
+        return nextSibling;
       }
-      parentElement = parentElement.parentElement;
+      nextSibling = nextSibling.previousSibling;
     }
   }
 
