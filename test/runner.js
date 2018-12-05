@@ -7,7 +7,7 @@ const innerText = require("../index");
 describe("Tests without getComputedStyle()", () => {
   const cases = path.join(__dirname, "cases");
   const baselines = path.join(__dirname, "baselines")
-  for (const caseName of fs.readdirSync(cases)) {
+  for (const caseName of fs.readdirSync(cases).filter(c => !c.endsWith("-styled.html"))) {
     it(caseName, () => {
       const caseText = fs.readFileSync(path.join(cases, caseName), "utf-8");
       const fragment = JSDOM.fragment(caseText);
