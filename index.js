@@ -1,4 +1,4 @@
-const { isBlockLevel, isInlineLevel } = require("./display");
+const createDisplayHelpers = require("./display");
 
 const nonCSSRenderedElements = [
   "audio",
@@ -10,13 +10,18 @@ const nonCSSRenderedElements = [
   "video",
 ];
 
+module.exports = innerText;
+innerText.default = innerText;
+
 /**
  * @param {HTMLElement} element target element
+ * @param {{ getComputedStyle?: Window["getComputedStyle"] }} options
  */
-function innerText(element) {
+function innerText(element, { getComputedStyle } = {}) {
   if (nonCSSRenderedElements.includes(element.localName)) {
     return element.textContent;
   }
+  const { getDisplay, isBlockLevel, isInlineLevel, isTableRowGroup } = createDisplayHelpers(getComputedStyle);
 
   let results = collectInnerText(element);
   results = results.filter(item => item !== "");
@@ -35,219 +40,254 @@ function innerText(element) {
     found = findConsecutiveNumbers(results, found.index);
   }
   return results.join("");
-}
-module.exports = innerText;
-innerText.default = innerText;
 
-/**
- * @param {(string | number)[]} array
- * @param {number} start
- */
-function findConsecutiveNumbers(array, start) {
-  let index = -1;
-  for (let i = start; i < array.length; i++) {
-    if (typeof array[i] === "number") {
-      index = i;
-      break;
+  /**
+   * @param {Element} element 
+   */
+  function getWhiteSpaceRule(element) {
+    if (getComputedStyle) {
+      return getComputedStyle(element).whiteSpace;
     }
+    return element.localName === "pre" ? "pre" : "normal";
   }
-  if (index === -1) {
+
+  /**
+   * @param {(string | number)[]} array
+   * @param {number} start
+   */
+  function findConsecutiveNumbers(array, start) {
+    let index = -1;
+    for (let i = start; i < array.length; i++) {
+      if (typeof array[i] === "number") {
+        index = i;
+        break;
+      }
+    }
+    if (index === -1) {
+      return {
+        index, numbers: []
+      };
+    }
+    /** @type {number[]} */
+    const numbers = [/** @type {number} */(array[index])];
+    for (let i = index + 1; i < array.length; i++) {
+      if (typeof array[i] !== "number") {
+        break;
+      }
+      numbers.push(/** @type {number} */(array[i]));
+    }
     return {
-      index, numbers: []
+      index, numbers
     };
   }
-  /** @type {number[]} */
-  const numbers = [/** @type {number} */(array[index])];
-  for (let i = index + 1; i < array.length; i++) {
-    if (typeof array[i] !== "number") {
-      break;
+
+  /**
+   * Runs "inner text collection steps"
+   * @param {Node} node target node
+   */
+  function collectInnerText(node) {
+    if (isElement(node) && nonCSSRenderedElements.includes(node.localName)) {
+      // Return early because `display: contents` is currently being ignored.
+      return [];
     }
-    numbers.push(/** @type {number} */(array[i]));
-  }
-  return {
-    index, numbers
-  };
-}
 
-/**
- * Runs "inner text collection steps"
- * @param {Node} node target node
- */
-function collectInnerText(node) {
-  if (isElement(node) && nonCSSRenderedElements.includes(node.localName)) {
-    // Return early because `display: contents` is currently being ignored.
-    return [];
-  }
+    /** @type {(number | string)[]} */
+    const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
-  /** @type {(number | string)[]} */
-  const items = arrayFlat(getChildNodes(node).map(collectInnerText));
-
-  if (isText(node)) {
-    if (node.parentElement && node.parentElement.localName === "pre") {
-      items.push(/** @type {string} */(node.textContent));
-    } else {
-      let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
-      if (shouldTrimStart(node)) {
-        collapsed = collapsed.trimStart();
-      }
-      if (isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
-        items.push(collapsed.trimEnd());
+    if (isText(node)) {
+      if (node.parentElement && getWhiteSpaceRule(node.parentElement) === "pre") {
+        items.push(/** @type {string} */(node.textContent));
       } else {
-        items.push(collapsed);
+        let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
+        if (shouldTrimStart(node)) {
+          collapsed = collapsed.trimStart();
+        }
+        if (isElementOf(node.nextSibling, "br") || !getNextVisualTextSibling(node)) {
+          items.push(collapsed.trimEnd());
+        } else {
+          items.push(collapsed);
+        }
       }
-    }
-  } else if (isElement(node)) {
-    switch (node.localName) {
-      case "br":
+    } else if (isElement(node)) {
+      if (node.localName === "br") {
         items.push("\n");
-        break;
-      case "p":
+      } else if (node.localName === "p") {
         items.splice(0, 0, 2);
         items.push(2);
-        break;
-      case "td":
-      case "th":
-        if (isElementOf(node.parentElement, "tr")) {
-          const { cells } = node.parentElement;
-          if (node !== cells[cells.length - 1]) {
-            items.push("\t");
-          }
+      } else {
+        const display = getDisplay(node);
+        switch (display) {
+          case "table-cell":
+            if (node.parentElement && getDisplay(node.parentElement) === "table-row") {
+              const cells = [...node.parentElement.children]
+                .filter(child => getDisplay(child) === "table-cell");
+              if (node !== cells[cells.length - 1]) {
+                items.push("\t");
+              }
+            }
+            break;
+          case "table-row":
+            const table = getClosestParentDisplay(node, "table");
+            if (table) {
+              const rows = collectTableRows(table);
+              if (node !== rows[rows.length - 1]) {
+                items.push("\n");
+              }
+            }
+            break;
+          default:
+            if (display === "table-caption" || isBlockLevel(node)) {
+              items.splice(0, 0, 1);
+              items.push(1);
+            }
+            break;
         }
-        break;
-      case "tr":
-        const table = node.closest("table");
-        if (table) {
-          const { rows } = table;
-          if (node !== rows[rows.length - 1]) {
-            items.push("\n");
-          }
-        }
-        break;
-      default:
-        if (node.localName === "caption" || isBlockLevel(node)) {
-          items.splice(0, 0, 1);
-          items.push(1);
-        }
-        break;
+      }
+    }
+    return items;
+  }
+
+  /**
+   * @param {Element} element 
+   * @param {string} display 
+   */
+  function getClosestParentDisplay(element, display) {
+    let { parentElement } = element;
+    while (parentElement) {
+      if (getDisplay(parentElement) === display) {
+        return parentElement;
+      }
+      parentElement = parentElement.parentElement;
     }
   }
-  return items;
-}
 
-/**
- * @param {Text} text 
- */
-function shouldTrimStart(text) {
-  const previousSibling = getPreviousVisualTextSibling(text);
-  if (!previousSibling) {
-    return true;
-  }
-  return /\s$/.test(/** @type {string} */(previousSibling.textContent));
-}
-
-/**
- * @param {Node} node
- * @return {Text | undefined}
- */
-function getPreviousVisualTextSibling(node) {
-  const previousSibling = getPreviousNonemptyInlineSibling(node);
-  if (previousSibling) {
-    return getLastLeafTextIfInline(previousSibling);
-  }
-  let { parentElement } = node;
-  if (!parentElement) {
-    return;
-  }
-  if (!isInlineLevel(parentElement)) {
-    return;
-  }
-  return getPreviousVisualTextSibling(parentElement);
-}
-
-/**
- * @param {Node} node 
- */
-function getPreviousNonemptyInlineSibling(node) {
-  let { previousSibling } = node
-  while (previousSibling) {
-    if (isElement(previousSibling) && !isInlineLevel(previousSibling)) {
-      return;
-    } else if (previousSibling.textContent) {
-      return previousSibling;
+  /**
+   * @param {Element} tableLike 
+   */
+  function collectTableRows(tableLike) {
+    const children = [...tableLike.children];
+    const tableComponents = children.filter(isTableRowGroup);
+    for (const component of tableComponents) {
+      children.push(...component.children);
     }
-    previousSibling = previousSibling.previousSibling;
+    return children.filter(c => getDisplay(c) === "table-row")
   }
-}
 
-/**
- * @param {Node} node 
- */
-function getLastLeafTextIfInline(node) {
-  let target = node;
-  while (target) {
-    if (isElement(target) && !isInlineLevel(target)) {
+  /**
+   * @param {Text} text 
+   */
+  function shouldTrimStart(text) {
+    const previousSibling = getPreviousVisualTextSibling(text);
+    if (!previousSibling) {
+      return true;
+    }
+    return /\s$/.test(/** @type {string} */(previousSibling.textContent));
+  }
+
+  /**
+   * @param {Node} node
+   * @return {Text | undefined}
+   */
+  function getPreviousVisualTextSibling(node) {
+    const previousSibling = getPreviousNonemptyInlineSibling(node);
+    if (previousSibling) {
+      return getLastLeafTextIfInline(previousSibling);
+    }
+    let { parentElement } = node;
+    if (!parentElement) {
       return;
     }
-    if (target.nodeType === 3) {
-      return /** @type {Text} */ (target);
-    }
-    if (!target.lastChild) {
+    if (!isInlineLevel(parentElement)) {
       return;
     }
-    target = target.lastChild;
+    return getPreviousVisualTextSibling(parentElement);
   }
-}
 
-/**
- * @param {Node} node
- * @return {Text | undefined}
- */
-function getNextVisualTextSibling(node) {
-  const nextSibling = getNextNonemptyInlineSibling(node);
-  if (nextSibling) {
-    return getFirstLeafTextIfInline(nextSibling);
+  /**
+   * @param {Node} node 
+   */
+  function getPreviousNonemptyInlineSibling(node) {
+    let { previousSibling } = node
+    while (previousSibling) {
+      if (isElement(previousSibling) && !isInlineLevel(previousSibling)) {
+        return;
+      } else if (previousSibling.textContent) {
+        return previousSibling;
+      }
+      previousSibling = previousSibling.previousSibling;
+    }
   }
-  let { parentElement } = node;
-  if (!parentElement) {
-    return;
-  }
-  if (!isInlineLevel(parentElement)) {
-    return;
-  }
-  return getNextVisualTextSibling(parentElement);
-}
 
-/**
- * @param {Node} node 
- */
-function getNextNonemptyInlineSibling(node) {
-  let { nextSibling } = node
-  while (nextSibling) {
-    if (isElement(nextSibling) && !isInlineLevel(nextSibling)) {
-      return;
-    } else if (nextSibling.textContent) {
-      return nextSibling;
+  /**
+   * @param {Node} node 
+   */
+  function getLastLeafTextIfInline(node) {
+    let target = node;
+    while (target) {
+      if (isElement(target) && !isInlineLevel(target)) {
+        return;
+      }
+      if (target.nodeType === 3) {
+        return /** @type {Text} */ (target);
+      }
+      if (!target.lastChild) {
+        return;
+      }
+      target = target.lastChild;
     }
-    nextSibling = nextSibling.previousSibling;
   }
-}
 
-/**
- * @param {Node} node 
- */
-function getFirstLeafTextIfInline(node) {
-  let target = node;
-  while (target) {
-    if (isElement(target) && !isInlineLevel(target)) {
+  /**
+   * @param {Node} node
+   * @return {Text | undefined}
+   */
+  function getNextVisualTextSibling(node) {
+    const nextSibling = getNextNonemptyInlineSibling(node);
+    if (nextSibling) {
+      return getFirstLeafTextIfInline(nextSibling);
+    }
+    let { parentElement } = node;
+    if (!parentElement) {
       return;
     }
-    if (target.nodeType === 3) {
-      return /** @type {Text} */ (target);
-    }
-    if (!target.firstChild) {
+    if (!isInlineLevel(parentElement)) {
       return;
     }
-    target = target.firstChild;
+    return getNextVisualTextSibling(parentElement);
+  }
+
+  /**
+   * @param {Node} node 
+   */
+  function getNextNonemptyInlineSibling(node) {
+    let { nextSibling } = node
+    while (nextSibling) {
+      if (isElement(nextSibling) && !isInlineLevel(nextSibling)) {
+        return;
+      } else if (nextSibling.textContent) {
+        return nextSibling;
+      }
+      nextSibling = nextSibling.previousSibling;
+    }
+  }
+
+  /**
+   * @param {Node} node 
+   */
+  function getFirstLeafTextIfInline(node) {
+    let target = node;
+    while (target) {
+      if (isElement(target) && !isInlineLevel(target)) {
+        return;
+      }
+      if (target.nodeType === 3) {
+        return /** @type {Text} */ (target);
+      }
+      if (!target.firstChild) {
+        return;
+      }
+      target = target.firstChild;
+    }
   }
 }
 
