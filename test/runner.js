@@ -38,7 +38,7 @@ describe("Tests with getComputedStyle()", () => {
       });
       const baselineName = caseName.split(".")[0];
       const baseline = fs.readFileSync(path.join(baselines, baselineName), "utf-8");
-      expect(converted).toBe(baseline.trimEnd());
+      expect(converted + "\n").toBe(baseline);
     });
   }
 });

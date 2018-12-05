@@ -51,6 +51,16 @@ function innerText(element, { getComputedStyle } = {}) {
   }
 
   /**
+   * @param {Element} element 
+   */
+  function getWhiteSpaceRule(element) {
+    if (getComputedStyle) {
+      return getComputedStyle(element).whiteSpace;
+    }
+    return element.localName === "pre" ? "pre" : "normal";
+  }
+
+  /**
    * @param {(string | number)[]} array
    * @param {number} start
    */
@@ -94,7 +104,7 @@ function innerText(element, { getComputedStyle } = {}) {
     const items = arrayFlat(getChildNodes(node).map(collectInnerText));
 
     if (isText(node)) {
-      if (node.parentElement && node.parentElement.localName === "pre") {
+      if (node.parentElement && getWhiteSpaceRule(node.parentElement) === "pre") {
         items.push(/** @type {string} */(node.textContent));
       } else {
         let collapsed = (/** @type {string} */(node.textContent)).replace(/\s+/g, " ");
