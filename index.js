@@ -89,6 +89,32 @@ function innerText(element, { getComputedStyle } = {}) {
   return results.join("");
 
   /**
+   * @param {Element} element
+   */
+  function getDisplayValue(element) {
+    if (getComputedStyle) {
+      return getComputedStyle(element).display;
+    }
+    if (blockElements.includes(element.localName)) {
+      // Not accurate but should be okay for innerText calculation
+      return "block";
+    }
+    switch (element.localName) {
+      case "td":
+      case "th":
+        return "table-cell";
+      case "tr":
+        return "table-row";
+      case "table":
+        return "table";
+      case "caption":
+        return "table-caption";
+      default:
+        return "inline";
+    }
+  }
+
+  /**
    * @param {Element} element 
    */
   function isBlock(element) {
@@ -160,37 +186,39 @@ function innerText(element, { getComputedStyle } = {}) {
         }
       }
     } else if (isElement(node)) {
-      switch (node.localName) {
-        case "br":
-          items.push("\n");
-          break;
-        case "p":
-          items.splice(0, 0, 2);
-          items.push(2);
-          break;
-        case "td":
-        case "th":
-          if (isElementOf(node.parentElement, "tr")) {
-            const { cells } = node.parentElement;
-            if (node !== cells[cells.length - 1]) {
-              items.push("\t");
+      if (node.localName === "br") {
+        items.push("\n");
+      } else if (node.localName === "p") {
+        items.splice(0, 0, 2);
+        items.push(2);
+      } else {
+        const display = getDisplayValue(node);
+        switch (display) {
+          case "table-cell":
+            if (node.parentElement && getDisplayValue(node.parentElement) === "table-row") {
+              const cells = [...node.parentElement.children]
+                .filter(child => getDisplayValue(child) === "table-cell");
+              if (node !== cells[cells.length - 1]) {
+                items.push("\t");
+              }
             }
-          }
-          break;
-        case "tr":
-          if (isElementOf(node.parentElement, "table")) {
-            const { rows } = node.parentElement;
-            if (node !== rows[rows.length - 1]) {
-              items.push("\n");
+            break;
+          case "table-row":
+            if (node.parentElement && getDisplayValue(node.parentElement) === "table") {
+              const rows = [...node.parentElement.children]
+                .filter(child => getDisplayValue(child) === "table-row");
+              if (node !== rows[rows.length - 1]) {
+                items.push("\n");
+              }
             }
-          }
-          break;
-        default:
-          if (node.localName === "caption" || isBlock(node)) {
-            items.splice(0, 0, 1);
-            items.push(1);
-          }
-          break;
+            break;
+          default:
+            if (display === "table-caption" || isBlock(node)) {
+              items.splice(0, 0, 1);
+              items.push(1);
+            }
+            break;
+        }
       }
     }
     return items;
