@@ -71,13 +71,6 @@ function getDisplay(element) {
 
 const blockLevelDisplays = ["block", "flow-root", "list-item", "flex", "grid", "table"];
 
-/**
- * @param {Element} element 
- */
-function isBlockLevel(element) {
-  return blockLevelDisplays.includes(getDisplay(element))
-}
-
 const inlineLevelDisplays = [
   "inline",
   "inline-block",
@@ -89,13 +82,6 @@ const inlineLevelDisplays = [
   "inline-table"
 ];
 
-/**
- * @param {Element} element 
- */
-function isInlineLevel(element) {
-  return inlineLevelDisplays.includes(getDisplay(element));
-}
-
 const tableRowGroups = [
   "table-header-group",
   "table-row-group",
@@ -103,15 +89,42 @@ const tableRowGroups = [
 ]
 
 /**
- * @param {Element} element 
+ * @param {Window["getComputedStyle"] | undefined} getComputedStyle 
  */
-function isTableRowGroup(element) {
-  return tableRowGroups.includes(getDisplay(element));
-}
+module.exports = getComputedStyle => {
+  /**
+   * @param {Element} element 
+   */
+  function _getDisplay(element) {
+    if (getComputedStyle) {
+      return /** @type {string} */ (getComputedStyle(element).display);
+    }
+    return getDisplay(element);
+  }
 
-module.exports = {
-  getDisplay,
-  isBlockLevel,
-  isInlineLevel,
-  isTableRowGroup
-};
+  return ({
+    getDisplay: _getDisplay,
+
+    /**
+     * @param {Element} element 
+     */
+    isBlockLevel(element) {
+      return blockLevelDisplays.includes(_getDisplay(element))
+    },
+
+    /**
+     * @param {Element} element 
+     */
+    isInlineLevel(element) {
+      // workaround: JSDOM tends to return "" instead of "inline"
+      return inlineLevelDisplays.includes(_getDisplay(element) || "inline");
+    },
+
+    /**
+     * @param {Element} element 
+     */
+    isTableRowGroup(element) {
+      return tableRowGroups.includes(_getDisplay(element));
+    }
+  });
+}

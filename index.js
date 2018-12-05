@@ -1,4 +1,4 @@
-const { getDisplay, isBlockLevel, isInlineLevel, isTableRowGroup } = require("./display");
+const createDisplayHelpers = require("./display");
 
 const nonCSSRenderedElements = [
   "audio",
@@ -21,6 +21,7 @@ function innerText(element, { getComputedStyle } = {}) {
   if (nonCSSRenderedElements.includes(element.localName)) {
     return element.textContent;
   }
+  const { getDisplay, isBlockLevel, isInlineLevel, isTableRowGroup } = createDisplayHelpers(getComputedStyle);
 
   let results = collectInnerText(element);
   results = results.filter(item => item !== "");
@@ -39,16 +40,6 @@ function innerText(element, { getComputedStyle } = {}) {
     found = findConsecutiveNumbers(results, found.index);
   }
   return results.join("");
-
-  /**
-   * @param {Element} element 
-   */
-  function getDisplayValue(element) {
-    if (getComputedStyle) {
-      return getComputedStyle(element).display;
-    }
-    return getDisplay(element);
-  }
 
   /**
    * @param {Element} element 
@@ -124,12 +115,12 @@ function innerText(element, { getComputedStyle } = {}) {
         items.splice(0, 0, 2);
         items.push(2);
       } else {
-        const display = getDisplayValue(node);
+        const display = getDisplay(node);
         switch (display) {
           case "table-cell":
-            if (node.parentElement && getDisplayValue(node.parentElement) === "table-row") {
+            if (node.parentElement && getDisplay(node.parentElement) === "table-row") {
               const cells = [...node.parentElement.children]
-                .filter(child => getDisplayValue(child) === "table-cell");
+                .filter(child => getDisplay(child) === "table-cell");
               if (node !== cells[cells.length - 1]) {
                 items.push("\t");
               }
@@ -163,7 +154,7 @@ function innerText(element, { getComputedStyle } = {}) {
   function getClosestParentDisplay(element, display) {
     let { parentElement } = element;
     while (parentElement) {
-      if (getDisplayValue(parentElement) === display) {
+      if (getDisplay(parentElement) === display) {
         return parentElement;
       }
       parentElement = parentElement.parentElement;
