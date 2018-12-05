@@ -1,46 +1,4 @@
-/** 
- * Elements that is block-level by default
- * From MDN: https://developer.mozilla.org/docs/Web/HTML/Block-level_elements
- */
-const blockElements = [
-  "address",
-  "article",
-  "aside",
-  "blockquote",
-  "details",
-  "dialog",
-  "dd",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "hgroup",
-  "hr",
-  "li",
-  "main",
-  "nav",
-  "ol",
-  "p",
-  "pre",
-  "section",
-  "table",
-  "ul",
-
-  // Considered as block-level only for innerText
-  "optgroup",
-  "option"
-];
+const { isBlockLevel, isInlineLevel } = require("./display");
 
 const nonCSSRenderedElements = [
   "audio",
@@ -157,15 +115,16 @@ function collectInnerText(node) {
         }
         break;
       case "tr":
-        if (isElementOf(node.parentElement, "table")) {
-          const { rows } = node.parentElement;
+        const table = node.closest("table");
+        if (table) {
+          const { rows } = table;
           if (node !== rows[rows.length - 1]) {
             items.push("\n");
           }
         }
         break;
       default:
-        if (node.localName === "caption" || blockElements.includes(node.localName)) {
+        if (node.localName === "caption" || isBlockLevel(node)) {
           items.splice(0, 0, 1);
           items.push(1);
         }
@@ -199,7 +158,7 @@ function getPreviousVisualTextSibling(node) {
   if (!parentElement) {
     return;
   }
-  if (blockElements.includes(parentElement.localName)) {
+  if (!isInlineLevel(parentElement)) {
     return;
   }
   return getPreviousVisualTextSibling(parentElement);
@@ -211,7 +170,7 @@ function getPreviousVisualTextSibling(node) {
 function getPreviousNonemptyInlineSibling(node) {
   let { previousSibling } = node
   while (previousSibling) {
-    if (isElement(previousSibling) && blockElements.includes(previousSibling.localName)) {
+    if (isElement(previousSibling) && !isInlineLevel(previousSibling)) {
       return;
     } else if (previousSibling.textContent) {
       return previousSibling;
@@ -226,7 +185,7 @@ function getPreviousNonemptyInlineSibling(node) {
 function getLastLeafTextIfInline(node) {
   let target = node;
   while (target) {
-    if (isElement(target) && blockElements.includes(target.localName)) {
+    if (isElement(target) && !isInlineLevel(target)) {
       return;
     }
     if (target.nodeType === 3) {
@@ -252,7 +211,7 @@ function getNextVisualTextSibling(node) {
   if (!parentElement) {
     return;
   }
-  if (blockElements.includes(parentElement.localName)) {
+  if (!isInlineLevel(parentElement)) {
     return;
   }
   return getNextVisualTextSibling(parentElement);
@@ -264,7 +223,7 @@ function getNextVisualTextSibling(node) {
 function getNextNonemptyInlineSibling(node) {
   let { nextSibling } = node
   while (nextSibling) {
-    if (isElement(nextSibling) && blockElements.includes(nextSibling.localName)) {
+    if (isElement(nextSibling) && !isInlineLevel(nextSibling)) {
       return;
     } else if (nextSibling.textContent) {
       return nextSibling;
@@ -279,7 +238,7 @@ function getNextNonemptyInlineSibling(node) {
 function getFirstLeafTextIfInline(node) {
   let target = node;
   while (target) {
-    if (isElement(target) && blockElements.includes(target.localName)) {
+    if (isElement(target) && !isInlineLevel(target)) {
       return;
     }
     if (target.nodeType === 3) {
