@@ -30,7 +30,6 @@ const blockElements = [
   "p",
   "pre",
   "section",
-  "table",
   "ul",
 
   // Considered as block-level only for innerText
@@ -97,8 +96,22 @@ function isInlineLevel(element) {
   return inlineLevelDisplays.includes(getDisplay(element));
 }
 
+const tableRowGroups = [
+  "table-header-group",
+  "table-row-group",
+  "table-footer-group"
+]
+
+/**
+ * @param {Element} element 
+ */
+function isTableRowGroup(element) {
+  return tableRowGroups.includes(getDisplay(element));
+}
+
 module.exports = {
   getDisplay,
   isBlockLevel,
-  isInlineLevel
+  isInlineLevel,
+  isTableRowGroup
 };

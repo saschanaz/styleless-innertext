@@ -1,4 +1,4 @@
-const { getDisplay, isBlockLevel, isInlineLevel } = require("./display");
+const { getDisplay, isBlockLevel, isInlineLevel, isTableRowGroup } = require("./display");
 
 const nonCSSRenderedElements = [
   "audio",
@@ -128,8 +128,7 @@ function innerText(element, { getComputedStyle } = {}) {
           case "table-row":
             const table = getClosestParentDisplay(node, "table");
             if (table) {
-              const rows = [...table.children]
-                .filter(child => getDisplayValue(child) === "table-row");
+              const rows = collectTableRows(table);
               if (node !== rows[rows.length - 1]) {
                 items.push("\n");
               }
@@ -159,6 +158,18 @@ function innerText(element, { getComputedStyle } = {}) {
       }
       parentElement = parentElement.parentElement;
     }
+  }
+
+  /**
+   * @param {Element} tableLike 
+   */
+  function collectTableRows(tableLike) {
+    const children = [...tableLike.children];
+    const tableComponents = children.filter(isTableRowGroup);
+    for (const component of tableComponents) {
+      children.push(...component.children);
+    }
+    return children.filter(c => getDisplay(c) === "table-row")
   }
 
   /**
