@@ -1,42 +1,4 @@
-/** 
- * Elements that is block-level by default
- * From MDN: https://developer.mozilla.org/docs/Web/HTML/Block-level_elements
- */
-const blockElements = [
-  "address",
-  "article",
-  "aside",
-  "blockquote",
-  "details",
-  "dialog",
-  "dd",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "hgroup",
-  "hr",
-  "li",
-  "main",
-  "nav",
-  "ol",
-  "p",
-  "pre",
-  "section",
-  "table",
-  "ul",
-];
+const { getDisplay, isBlockLevel, isInlineLevel } = require("./display");
 
 const nonCSSRenderedElements = [
   "audio",
@@ -46,16 +8,6 @@ const nonCSSRenderedElements = [
   "style",
   "textarea",
   "video",
-];
-
-// https://www.w3.org/TR/css-display-3/#ref-for-block-level
-const blockLevelDisplays = [
-  "block",
-  "flow-root",
-  "list-item",
-  "flex",
-  "grid",
-  "table"
 ];
 
 module.exports = innerText;
@@ -89,43 +41,13 @@ function innerText(element, { getComputedStyle } = {}) {
   return results.join("");
 
   /**
-   * @param {Element} element
+   * @param {Element} element 
    */
   function getDisplayValue(element) {
     if (getComputedStyle) {
       return getComputedStyle(element).display;
     }
-    if (blockElements.includes(element.localName)) {
-      // Not accurate but should be okay for innerText calculation
-      return "block";
-    }
-    switch (element.localName) {
-      case "td":
-      case "th":
-        return "table-cell";
-      case "tr":
-        return "table-row";
-      case "table":
-        return "table";
-      case "caption":
-        return "table-caption";
-      default:
-        return "inline";
-    }
-  }
-
-  /**
-   * @param {Element} element 
-   */
-  function isBlock(element) {
-    if (["optgroup", "option"].includes(element.localName)) {
-      // Considered as block-level only for innerText
-      return true;
-    }
-    if (getComputedStyle) {
-      return blockLevelDisplays.includes(String(getComputedStyle(element).display));
-    }
-    return blockElements.includes(element.localName);
+    return getDisplay(element);
   }
 
   /**
@@ -204,8 +126,9 @@ function innerText(element, { getComputedStyle } = {}) {
             }
             break;
           case "table-row":
-            if (node.parentElement && getDisplayValue(node.parentElement) === "table") {
-              const rows = [...node.parentElement.children]
+            const table = getClosestParentDisplay(node, "table");
+            if (table) {
+              const rows = [...table.children]
                 .filter(child => getDisplayValue(child) === "table-row");
               if (node !== rows[rows.length - 1]) {
                 items.push("\n");
@@ -213,7 +136,7 @@ function innerText(element, { getComputedStyle } = {}) {
             }
             break;
           default:
-            if (display === "table-caption" || isBlock(node)) {
+            if (display === "table-caption" || isBlockLevel(node)) {
               items.splice(0, 0, 1);
               items.push(1);
             }
@@ -222,6 +145,20 @@ function innerText(element, { getComputedStyle } = {}) {
       }
     }
     return items;
+  }
+
+  /**
+   * @param {Element} element 
+   * @param {string} display 
+   */
+  function getClosestParentDisplay(element, display) {
+    let { parentElement } = element;
+    while (parentElement) {
+      if (getDisplayValue(parentElement) === display) {
+        return parentElement;
+      }
+      parentElement = parentElement.parentElement;
+    }
   }
 
   /**
@@ -248,7 +185,7 @@ function innerText(element, { getComputedStyle } = {}) {
     if (!parentElement) {
       return;
     }
-    if (isBlock(parentElement)) {
+    if (!isInlineLevel(parentElement)) {
       return;
     }
     return getPreviousVisualTextSibling(parentElement);
@@ -260,7 +197,7 @@ function innerText(element, { getComputedStyle } = {}) {
   function getPreviousNonemptyInlineSibling(node) {
     let { previousSibling } = node
     while (previousSibling) {
-      if (isElement(previousSibling) && isBlock(previousSibling)) {
+      if (isElement(previousSibling) && !isInlineLevel(previousSibling)) {
         return;
       } else if (previousSibling.textContent) {
         return previousSibling;
@@ -275,7 +212,7 @@ function innerText(element, { getComputedStyle } = {}) {
   function getLastLeafTextIfInline(node) {
     let target = node;
     while (target) {
-      if (isElement(target) && isBlock(target)) {
+      if (isElement(target) && !isInlineLevel(target)) {
         return;
       }
       if (target.nodeType === 3) {
@@ -301,7 +238,7 @@ function innerText(element, { getComputedStyle } = {}) {
     if (!parentElement) {
       return;
     }
-    if (isBlock(parentElement)) {
+    if (!isInlineLevel(parentElement)) {
       return;
     }
     return getNextVisualTextSibling(parentElement);
@@ -313,7 +250,7 @@ function innerText(element, { getComputedStyle } = {}) {
   function getNextNonemptyInlineSibling(node) {
     let { nextSibling } = node
     while (nextSibling) {
-      if (isElement(nextSibling) && isBlock(nextSibling)) {
+      if (isElement(nextSibling) && !isInlineLevel(nextSibling)) {
         return;
       } else if (nextSibling.textContent) {
         return nextSibling;
@@ -328,7 +265,7 @@ function innerText(element, { getComputedStyle } = {}) {
   function getFirstLeafTextIfInline(node) {
     let target = node;
     while (target) {
-      if (isElement(target) && isBlock(target)) {
+      if (isElement(target) && !isInlineLevel(target)) {
         return;
       }
       if (target.nodeType === 3) {
