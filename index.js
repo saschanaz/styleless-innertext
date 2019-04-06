@@ -260,7 +260,8 @@ function innerText(element, { getComputedStyle } = {}) {
    * @param {Node} node 
    */
   function getNextNonemptyInlineSibling(node) {
-    let { nextSibling } = node
+    /** @type {Node | null} */
+    let nextSibling = node.nextSibling
     while (nextSibling) {
       if (isElement(nextSibling) && !isInlineLevel(nextSibling)) {
         return;

@@ -1,7 +1,10 @@
 {
     "compilerOptions": {
-        "target": "es2017",
+        "target": "es2019",
         "checkJs": true,
         "strict": true
-    }
+    },
+    "include": [
+        "index.js"
+    ]
 }
