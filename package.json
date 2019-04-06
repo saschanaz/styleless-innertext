@@ -32,6 +32,7 @@
   },
   "files": [
     "index.js",
+    "display.js",
     "index.d.ts"
   ]
 }
