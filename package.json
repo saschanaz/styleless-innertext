@@ -25,10 +25,10 @@
   },
   "homepage": "https://github.com/saschanaz/styleless-innertext#readme",
   "devDependencies": {
-    "expect": "^23.6.0",
-    "jsdom": "^13.0.0",
-    "mocha": "^5.2.0",
-    "typescript": "^3.4.2"
+    "expect": "^26.6.2",
+    "jsdom": "^16.5.3",
+    "mocha": "^8.3.2",
+    "typescript": "^4.2.4"
   },
   "files": [
     "index.js",
