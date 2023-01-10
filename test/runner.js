@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const expect = require("expect");
+const { expect } = require("expect");
 const { JSDOM } = require("jsdom");
 const innerText = require("../index");
 
