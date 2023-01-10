@@ -1,6 +1,6 @@
 {
   "name": "styleless-innertext",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "A library to imitate WHATWG HTMLElement.innerText specification",
   "main": "index.js",
   "directories": {
