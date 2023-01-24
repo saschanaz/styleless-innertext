@@ -8,6 +8,7 @@ const nonCSSRenderedElements = [
   "style",
   "textarea",
   "video",
+  "iframe"
 ];
 
 module.exports = innerText;
